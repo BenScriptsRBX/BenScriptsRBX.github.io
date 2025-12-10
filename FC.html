@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webhook Auto Trigger</title>
+</head>
+<body>
+<script>
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
+
+// Function to send message to Discord webhook
+function sendWebhookMessage(text) {
+    fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text })
+    }).catch(err => console.error("Webhook error:", err));
+}
+
+// Track if message has already been sent in this active session
+let hasTriggeredThisSession = false;
+
+// Automatically send when page loads
+window.addEventListener("load", () => {
+    if (!hasTriggeredThisSession) {
+        sendWebhookMessage("Bot is getting whispered in Fingals!!");
+        hasTriggeredThisSession = true;
+    }
+});
+
+// Detect tab/app visibility changes
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        // User switched apps or tab → reset trigger
+        hasTriggeredThisSession = false;
+        console.log("Page inactive → trigger reset.");
+    } else {
+        // User returned → send webhook if not already triggered
+        if (!hasTriggeredThisSession) {
+            sendWebhookMessage("Bot is getting whispered in Fingals!!");
+            hasTriggeredThisSession = true;
+        }
+    }
+});
+</script>
+</body>
+</html>
