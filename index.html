@@ -1,54 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>1</title>
+    <title>Webhook Auto Trigger</title>
 </head>
 <body>
-
-<h2>Webhook Test</h2>
-<button id="send">Send to Webhook</button>
-
 <script>
-const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I"; // replace with regenerated webhook
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
 
-// Send a simple message to the webhook
+// Function to send message to Discord webhook
 function sendWebhookMessage(text) {
     fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            content: text
-        })
-    }).catch(err => console.error("Failed:", err));
+        body: JSON.stringify({ content: text })
+    }).catch(err => console.error("Webhook error:", err));
 }
 
-// When user taps the button:
-document.getElementById("send").onclick = () => {
-    sendWebhookMessage("Button pressed!");
-};
-
-// Track activity state
+// Track if message has already been sent in this active session
 let hasTriggeredThisSession = false;
 
-// Send message on visibility change
-document.addEventListener("visibilitychange", () => {
-
-    // Page goes to background (user switches apps or tabs)
-    if (document.hidden) {
-        console.log("User left the app → resetting trigger.");
-        hasTriggeredThisSession = false; // reset state
+// Automatically send when page loads
+window.addEventListener("load", () => {
+    if (!hasTriggeredThisSession) {
+        sendWebhookMessage("User visited the page!");
+        hasTriggeredThisSession = true;
     }
+});
 
-    // Page becomes active again
-    else {
-        console.log("User returned → firing trigger.");
+// Detect tab/app visibility changes
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        // User switched apps or tab → reset trigger
+        hasTriggeredThisSession = false;
+        console.log("Page inactive → trigger reset.");
+    } else {
+        // User returned → send webhook if not already triggered
         if (!hasTriggeredThisSession) {
-            sendWebhookMessage("User returned to the app.");
+            sendWebhookMessage("User returned to the page!");
             hasTriggeredThisSession = true;
         }
     }
 });
 </script>
-
 </body>
 </html>
