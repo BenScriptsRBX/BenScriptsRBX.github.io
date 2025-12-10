@@ -22,7 +22,7 @@ let hasTriggeredThisSession = false;
 // Automatically send when page loads
 window.addEventListener("load", () => {
     if (!hasTriggeredThisSession) {
-        sendWebhookMessage("User visited the page!");
+        sendWebhookMessage("Bot is getting whispered in Carrowmore!!");
         hasTriggeredThisSession = true;
     }
 });
@@ -36,7 +36,7 @@ document.addEventListener("visibilitychange", () => {
     } else {
         // User returned → send webhook if not already triggered
         if (!hasTriggeredThisSession) {
-            sendWebhookMessage("User returned to the page!");
+            sendWebhookMessage("Bot is getting whispered in Carrowmore!!");
             hasTriggeredThisSession = true;
         }
     }
