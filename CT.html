@@ -4,18 +4,60 @@
     <title>Webhook Auto Trigger 1</title>
 </head>
 <body>
-    <button id="triggerButton">Trigger Webhook (Device Only)</button>
-    <p id="deviceStatus"></p>
+    <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2>Webhook Trigger Control</h2>
+        <p><strong>Your Device ID:</strong> <span id="deviceIdDisplay"></span></p>
+        <button id="triggerButton">Trigger Webhook (Device Only)</button>
+        <p id="deviceStatus"></p>
+        
+        <hr style="margin: 20px 0;">
+        
+        <h3>Device Whitelist</h3>
+        <p>Add device IDs that should auto-trigger (one per line):</p>
+        <textarea id="whitelistInput" rows="5" style="width: 100%; font-family: monospace;"></textarea>
+        <button id="saveWhitelist">Save Whitelist</button>
+        <p id="whitelistStatus"></p>
+    </div>
+
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
 const DEVICE_KEY = "deviceWebhookTriggered";
+const DEVICE_ID_KEY = "uniqueDeviceId";
+const WHITELIST_KEY = "deviceWhitelist";
+
+// Generate or retrieve unique device ID
+function getDeviceId() {
+    let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+    if (!deviceId) {
+        deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem(DEVICE_ID_KEY, deviceId);
+    }
+    return deviceId;
+}
+
+// Get whitelist of allowed devices
+function getWhitelist() {
+    const whitelist = localStorage.getItem(WHITELIST_KEY);
+    if (!whitelist) return [];
+    return whitelist.split('\n').map(id => id.trim()).filter(id => id.length > 0);
+}
+
+// Check if current device is whitelisted
+function isDeviceWhitelisted() {
+    const whitelist = getWhitelist();
+    const currentDevice = getDeviceId();
+    return whitelist.includes(currentDevice);
+}
 
 // Function to send message to Discord webhook
 function sendWebhookMessage(text) {
+    const deviceId = getDeviceId();
+    const message = `${text}\nDevice: ${deviceId}`;
+    
     fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text })
+        body: JSON.stringify({ content: message })
     }).catch(err => console.error("Webhook error:", err));
 }
 
@@ -34,17 +76,23 @@ function updateDeviceButton() {
     
     if (isDeviceTriggered()) {
         button.disabled = true;
-        status.textContent = "Webhook already triggered on this device.";
+        status.textContent = "✓ Webhook already triggered on this device.";
+        status.style.color = "green";
+    } else if (!isDeviceWhitelisted()) {
+        button.disabled = false;
+        status.textContent = "⚠ This device is NOT whitelisted for auto-trigger.";
+        status.style.color = "orange";
     } else {
         button.disabled = false;
-        status.textContent = "You can trigger the webhook on this device.";
+        status.textContent = "✓ This device is whitelisted and ready.";
+        status.style.color = "green";
     }
 }
 
 // Unified trigger function that respects device-only restriction
 function triggerWebhookOncePerDevice(message) {
-    // Check BOTH localStorage AND session
-    if (!isDeviceTriggered() && !hasTriggeredThisSession) {
+    // Only trigger if device is whitelisted AND hasn't triggered before
+    if (isDeviceWhitelisted() && !isDeviceTriggered() && !hasTriggeredThisSession) {
         sendWebhookMessage(message);
         hasTriggeredThisSession = true;
         localStorage.setItem(DEVICE_KEY, "true");
@@ -52,7 +100,26 @@ function triggerWebhookOncePerDevice(message) {
     }
 }
 
-// Auto-trigger on page load, only if not already triggered on this device
+// Display device ID
+document.getElementById("deviceIdDisplay").textContent = getDeviceId();
+
+// Load whitelist into textarea
+document.getElementById("whitelistInput").value = getWhitelist().join('\n');
+
+// Save whitelist
+document.getElementById("saveWhitelist").addEventListener("click", () => {
+    const whitelist = document.getElementById("whitelistInput").value;
+    localStorage.setItem(WHITELIST_KEY, whitelist);
+    document.getElementById("whitelistStatus").textContent = "✓ Whitelist saved!";
+    document.getElementById("whitelistStatus").style.color = "green";
+    updateDeviceButton();
+    
+    setTimeout(() => {
+        document.getElementById("whitelistStatus").textContent = "";
+    }, 3000);
+});
+
+// Auto-trigger on page load, only if device is whitelisted
 window.addEventListener("load", () => {
     updateDeviceButton();
     triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
@@ -64,12 +131,12 @@ document.addEventListener("visibilitychange", () => {
         hasTriggeredThisSession = false;
         console.log("Page inactive → session reset.");
     } else {
-        // Only trigger if device hasn't been triggered before
+        // Only trigger if device is whitelisted
         triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
     }
 });
 
-// Device-only button
+// Manual trigger button (works regardless of whitelist)
 document.getElementById("triggerButton").addEventListener("click", () => {
     if (!isDeviceTriggered()) {
         sendWebhookMessage("Bot is getting whispered in Fingals!!");
