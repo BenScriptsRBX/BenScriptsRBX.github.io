@@ -9,6 +9,7 @@
 
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
+const DEVICE_KEY = "deviceWebhookTriggered";
 
 // Function to send message to Discord webhook
 function sendWebhookMessage(text) {
@@ -22,33 +23,7 @@ function sendWebhookMessage(text) {
 // Track if message has already been sent in this active session
 let hasTriggeredThisSession = false;
 
-// Automatically send when page loads
-window.addEventListener("load", () => {
-    if (!hasTriggeredThisSession) {
-        sendWebhookMessage("Bot is getting whispered in Fingals!!");
-        hasTriggeredThisSession = true;
-    }
-    updateDeviceButton();
-});
-
-// Detect tab/app visibility changes
-document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-        // User switched apps or tab → reset trigger
-        hasTriggeredThisSession = false;
-        console.log("Page inactive → trigger reset.");
-    } else {
-        // User returned → send webhook if not already triggered
-        if (!hasTriggeredThisSession) {
-            sendWebhookMessage("Bot is getting whispered in Fingals!!");
-            hasTriggeredThisSession = true;
-        }
-    }
-});
-
-// --- Device-only button logic ---
-const DEVICE_KEY = "deviceWebhookTriggered";
-
+// Update the device button status
 function updateDeviceButton() {
     const button = document.getElementById("triggerButton");
     const status = document.getElementById("deviceStatus");
@@ -63,6 +38,33 @@ function updateDeviceButton() {
     }
 }
 
+// Auto-trigger on page load, only if device hasn't triggered yet
+window.addEventListener("load", () => {
+    if (!localStorage.getItem(DEVICE_KEY)) {
+        if (!hasTriggeredThisSession) {
+            sendWebhookMessage("Bot is getting whispered in Fingals!!");
+            hasTriggeredThisSession = true;
+        }
+    }
+    updateDeviceButton();
+});
+
+// Detect tab/app visibility changes
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        // User switched apps or tab → reset session trigger
+        hasTriggeredThisSession = false;
+        console.log("Page inactive → trigger reset.");
+    } else {
+        // User returned → auto-trigger if not already triggered on this device
+        if (!localStorage.getItem(DEVICE_KEY) && !hasTriggeredThisSession) {
+            sendWebhookMessage("Bot is getting whispered in Fingals!!");
+            hasTriggeredThisSession = true;
+        }
+    }
+});
+
+// Device-only button click
 document.getElementById("triggerButton").addEventListener("click", () => {
     const triggered = localStorage.getItem(DEVICE_KEY) === "true";
     if (!triggered) {
