@@ -20,10 +20,10 @@ function sendWebhookMessage(text) {
     }).catch(err => console.error("Webhook error:", err));
 }
 
-// Track if message has already been sent in this active session
+// Track if message has already been sent in this session
 let hasTriggeredThisSession = false;
 
-// Update the device button status
+// Update device button status
 function updateDeviceButton() {
     const button = document.getElementById("triggerButton");
     const status = document.getElementById("deviceStatus");
@@ -38,33 +38,32 @@ function updateDeviceButton() {
     }
 }
 
-// Auto-trigger on page load, only if device hasn't triggered yet
-window.addEventListener("load", () => {
-    if (!localStorage.getItem(DEVICE_KEY)) {
-        if (!hasTriggeredThisSession) {
-            sendWebhookMessage("Bot is getting whispered in Fingals!!");
-            hasTriggeredThisSession = true;
-        }
+// Unified trigger function that respects device-only restriction
+function triggerWebhookOncePerDevice(message) {
+    const triggered = localStorage.getItem(DEVICE_KEY) === "true";
+    if (!triggered && !hasTriggeredThisSession) {
+        sendWebhookMessage(message);
+        hasTriggeredThisSession = true;
     }
+}
+
+// Auto-trigger on page load, only if not already triggered on this device
+window.addEventListener("load", () => {
+    triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
     updateDeviceButton();
 });
 
-// Detect tab/app visibility changes
+// Tab visibility change
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-        // User switched apps or tab → reset session trigger
         hasTriggeredThisSession = false;
-        console.log("Page inactive → trigger reset.");
+        console.log("Page inactive → session reset.");
     } else {
-        // User returned → auto-trigger if not already triggered on this device
-        if (!localStorage.getItem(DEVICE_KEY) && !hasTriggeredThisSession) {
-            sendWebhookMessage("Bot is getting whispered in Fingals!!");
-            hasTriggeredThisSession = true;
-        }
+        triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
     }
 });
 
-// Device-only button click
+// Device-only button
 document.getElementById("triggerButton").addEventListener("click", () => {
     const triggered = localStorage.getItem(DEVICE_KEY) === "true";
     if (!triggered) {
