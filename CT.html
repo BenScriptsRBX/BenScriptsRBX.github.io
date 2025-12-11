@@ -1,44 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Safe Webhook Trigger</title>
+    <title>Webhook Auto Trigger</title>
 </head>
 <body>
-    <h2>Trigger Discord Webhook (Only This Device)</h2>
-    <button id="triggerBtn">Send Alert</button>
+    <button id="triggerButton">Trigger Webhook</button>
+    <p id="status"></p>
 
-    <script>
-    const WEBHOOK_URL = "https://discord.com/api/webhooks/your_webhook_here";
+<script>
+const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
 
-    // Function to send a message to Discord webhook
-    function sendWebhookMessage(text) {
-        fetch(WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: text })
-        })
-        .then(() => alert("Webhook sent! ✅"))
-        .catch(err => console.error("Webhook error:", err));
+// Function to send message to Discord webhook
+function sendWebhookMessage(text) {
+    fetch(WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text })
+    })
+    .then(() => {
+        localStorage.setItem("webhookTriggered", "true");
+        updateStatus();
+    })
+    .catch(err => console.error("Webhook error:", err));
+}
+
+// Update the button and status message
+function updateStatus() {
+    const triggered = localStorage.getItem("webhookTriggered") === "true";
+    const button = document.getElementById("triggerButton");
+    const status = document.getElementById("status");
+    
+    if (triggered) {
+        button.disabled = true;
+        status.textContent = "Webhook already triggered on this device.";
+    } else {
+        button.disabled = false;
+        status.textContent = "You can trigger the webhook.";
     }
+}
 
-    // Check if this device has already triggered
-    const hasTriggered = localStorage.getItem("webhookTriggered");
+// Trigger button click
+document.getElementById("triggerButton").addEventListener("click", () => {
+    sendWebhookMessage("Bot is getting whispered in Fingals!!");
+});
 
-    const btn = document.getElementById("triggerBtn");
-
-    if (hasTriggered) {
-        btn.disabled = true;
-        btn.innerText = "Already triggered on this device";
-    }
-
-    btn.addEventListener("click", () => {
-        if (!localStorage.getItem("webhookTriggered")) {
-            sendWebhookMessage("Alert from this device only!");
-            localStorage.setItem("webhookTriggered", "true");
-            btn.disabled = true;
-            btn.innerText = "Already triggered on this device";
-        }
-    });
-    </script>
+// Initialize status on page load
+window.addEventListener("load", updateStatus);
+</script>
 </body>
 </html>
