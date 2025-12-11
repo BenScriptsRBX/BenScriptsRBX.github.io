@@ -4,8 +4,8 @@
     <title>Webhook Auto Trigger</title>
 </head>
 <body>
-    <button id="triggerButton">Trigger Webhook</button>
-    <p id="status"></p>
+    <button id="triggerButton">Trigger Webhook (Device Only)</button>
+    <p id="deviceStatus"></p>
 
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
@@ -16,36 +16,61 @@ function sendWebhookMessage(text) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: text })
-    })
-    .then(() => {
-        localStorage.setItem("webhookTriggered", "true");
-        updateStatus();
-    })
-    .catch(err => console.error("Webhook error:", err));
+    }).catch(err => console.error("Webhook error:", err));
 }
 
-// Update the button and status message
-function updateStatus() {
-    const triggered = localStorage.getItem("webhookTriggered") === "true";
+// Track if message has already been sent in this active session
+let hasTriggeredThisSession = false;
+
+// Automatically send when page loads
+window.addEventListener("load", () => {
+    if (!hasTriggeredThisSession) {
+        sendWebhookMessage("Bot is getting whispered in Fingals!!");
+        hasTriggeredThisSession = true;
+    }
+    updateDeviceButton();
+});
+
+// Detect tab/app visibility changes
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        // User switched apps or tab → reset trigger
+        hasTriggeredThisSession = false;
+        console.log("Page inactive → trigger reset.");
+    } else {
+        // User returned → send webhook if not already triggered
+        if (!hasTriggeredThisSession) {
+            sendWebhookMessage("Bot is getting whispered in Fingals!!");
+            hasTriggeredThisSession = true;
+        }
+    }
+});
+
+// --- Device-only button logic ---
+const DEVICE_KEY = "deviceWebhookTriggered";
+
+function updateDeviceButton() {
     const button = document.getElementById("triggerButton");
-    const status = document.getElementById("status");
-    
+    const status = document.getElementById("deviceStatus");
+    const triggered = localStorage.getItem(DEVICE_KEY) === "true";
+
     if (triggered) {
         button.disabled = true;
         status.textContent = "Webhook already triggered on this device.";
     } else {
         button.disabled = false;
-        status.textContent = "You can trigger the webhook.";
+        status.textContent = "You can trigger the webhook on this device.";
     }
 }
 
-// Trigger button click
 document.getElementById("triggerButton").addEventListener("click", () => {
-    sendWebhookMessage("Bot is getting whispered in Fingals!!");
+    const triggered = localStorage.getItem(DEVICE_KEY) === "true";
+    if (!triggered) {
+        sendWebhookMessage("Bot is getting whispered in Fingals!!");
+        localStorage.setItem(DEVICE_KEY, "true");
+        updateDeviceButton();
+    }
 });
-
-// Initialize status on page load
-window.addEventListener("load", updateStatus);
 </script>
 </body>
 </html>
