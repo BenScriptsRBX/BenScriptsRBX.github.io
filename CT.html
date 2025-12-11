@@ -1,29 +1,78 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Webhook Auto Trigger 1</title>
+    <title>Webhook Auto Trigger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #5865F2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #4752C4;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: #5865F2; }
+    </style>
 </head>
 <body>
-    <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>Webhook Trigger Control</h2>
-        <p><strong>Your Device ID:</strong> <span id="deviceIdDisplay"></span></p>
-        <button id="triggerButton">Trigger Webhook (Device Only)</button>
-        <p id="deviceStatus"></p>
-        
-        <hr style="margin: 20px 0;">
-        
-        <h3>Device Whitelist</h3>
-        <p>Add device IDs that should auto-trigger (one per line):</p>
-        <textarea id="whitelistInput" rows="5" style="width: 100%; font-family: monospace;"></textarea>
-        <button id="saveWhitelist">Save Whitelist</button>
-        <p id="whitelistStatus"></p>
+    <div class="container" id="authContainer">
+        <h2>Webhook Authorization</h2>
+        <p>Enter access code to enable auto-trigger:</p>
+        <input type="password" id="codeInput" placeholder="Enter code" />
+        <br>
+        <button id="submitCode">Submit</button>
+        <p class="status" id="authStatus"></p>
+    </div>
+
+    <div class="container" id="activeContainer" style="display: none;">
+        <h2>✓ Auto-Trigger Enabled</h2>
+        <p class="status success">This device is authorized and will auto-trigger webhooks.</p>
+        <button id="revokeAccess">Revoke Access</button>
     </div>
 
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
-const DEVICE_KEY = "deviceWebhookTriggered";
+const CORRECT_CODE = "4112";
+const AUTH_KEY = "webhookAuthorized";
 const DEVICE_ID_KEY = "uniqueDeviceId";
-const WHITELIST_KEY = "deviceWhitelist";
 
 // Generate or retrieve unique device ID
 function getDeviceId() {
@@ -35,18 +84,9 @@ function getDeviceId() {
     return deviceId;
 }
 
-// Get whitelist of allowed devices
-function getWhitelist() {
-    const whitelist = localStorage.getItem(WHITELIST_KEY);
-    if (!whitelist) return [];
-    return whitelist.split('\n').map(id => id.trim()).filter(id => id.length > 0);
-}
-
-// Check if current device is whitelisted
-function isDeviceWhitelisted() {
-    const whitelist = getWhitelist();
-    const currentDevice = getDeviceId();
-    return whitelist.includes(currentDevice);
+// Check if device is authorized
+function isAuthorized() {
+    return localStorage.getItem(AUTH_KEY) === "true";
 }
 
 // Function to send message to Discord webhook
@@ -64,65 +104,66 @@ function sendWebhookMessage(text) {
 // Track if message has already been sent in this session
 let hasTriggeredThisSession = false;
 
-// Check if device has been triggered
-function isDeviceTriggered() {
-    return localStorage.getItem(DEVICE_KEY) === "true";
-}
-
-// Update device button status
-function updateDeviceButton() {
-    const button = document.getElementById("triggerButton");
-    const status = document.getElementById("deviceStatus");
-    
-    if (isDeviceTriggered()) {
-        button.disabled = true;
-        status.textContent = "✓ Webhook already triggered on this device.";
-        status.style.color = "green";
-    } else if (!isDeviceWhitelisted()) {
-        button.disabled = false;
-        status.textContent = "⚠ This device is NOT whitelisted for auto-trigger.";
-        status.style.color = "orange";
-    } else {
-        button.disabled = false;
-        status.textContent = "✓ This device is whitelisted and ready.";
-        status.style.color = "green";
-    }
-}
-
-// Unified trigger function that respects device-only restriction
-function triggerWebhookOncePerDevice(message) {
-    // Only trigger if device is whitelisted AND hasn't triggered before
-    if (isDeviceWhitelisted() && !isDeviceTriggered() && !hasTriggeredThisSession) {
-        sendWebhookMessage(message);
+// Trigger webhook if authorized
+function triggerIfAuthorized() {
+    if (isAuthorized() && !hasTriggeredThisSession) {
+        sendWebhookMessage("Bot is getting whispered in Fingals!!");
         hasTriggeredThisSession = true;
-        localStorage.setItem(DEVICE_KEY, "true");
-        updateDeviceButton();
     }
 }
 
-// Display device ID
-document.getElementById("deviceIdDisplay").textContent = getDeviceId();
-
-// Load whitelist into textarea
-document.getElementById("whitelistInput").value = getWhitelist().join('\n');
-
-// Save whitelist
-document.getElementById("saveWhitelist").addEventListener("click", () => {
-    const whitelist = document.getElementById("whitelistInput").value;
-    localStorage.setItem(WHITELIST_KEY, whitelist);
-    document.getElementById("whitelistStatus").textContent = "✓ Whitelist saved!";
-    document.getElementById("whitelistStatus").style.color = "green";
-    updateDeviceButton();
+// Update UI based on authorization status
+function updateUI() {
+    const authContainer = document.getElementById("authContainer");
+    const activeContainer = document.getElementById("activeContainer");
     
-    setTimeout(() => {
-        document.getElementById("whitelistStatus").textContent = "";
-    }, 3000);
+    if (isAuthorized()) {
+        authContainer.style.display = "none";
+        activeContainer.style.display = "block";
+    } else {
+        authContainer.style.display = "block";
+        activeContainer.style.display = "none";
+    }
+}
+
+// Submit code
+document.getElementById("submitCode").addEventListener("click", () => {
+    const input = document.getElementById("codeInput");
+    const status = document.getElementById("authStatus");
+    
+    if (input.value === CORRECT_CODE) {
+        localStorage.setItem(AUTH_KEY, "true");
+        status.textContent = "✓ Access granted!";
+        status.className = "status success";
+        setTimeout(() => {
+            updateUI();
+            triggerIfAuthorized();
+        }, 1000);
+    } else {
+        status.textContent = "✗ Invalid code";
+        status.className = "status error";
+        input.value = "";
+    }
 });
 
-// Auto-trigger on page load, only if device is whitelisted
+// Allow Enter key to submit
+document.getElementById("codeInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+        document.getElementById("submitCode").click();
+    }
+});
+
+// Revoke access
+document.getElementById("revokeAccess").addEventListener("click", () => {
+    localStorage.removeItem(AUTH_KEY);
+    hasTriggeredThisSession = false;
+    updateUI();
+});
+
+// Auto-trigger on page load if authorized
 window.addEventListener("load", () => {
-    updateDeviceButton();
-    triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
+    updateUI();
+    triggerIfAuthorized();
 });
 
 // Tab visibility change
@@ -131,18 +172,7 @@ document.addEventListener("visibilitychange", () => {
         hasTriggeredThisSession = false;
         console.log("Page inactive → session reset.");
     } else {
-        // Only trigger if device is whitelisted
-        triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
-    }
-});
-
-// Manual trigger button (works regardless of whitelist)
-document.getElementById("triggerButton").addEventListener("click", () => {
-    if (!isDeviceTriggered()) {
-        sendWebhookMessage("Bot is getting whispered in Fingals!!");
-        localStorage.setItem(DEVICE_KEY, "true");
-        updateDeviceButton();
-        hasTriggeredThisSession = true;
+        triggerIfAuthorized();
     }
 });
 </script>
