@@ -6,7 +6,6 @@
 <body>
     <button id="triggerButton">Trigger Webhook (Device Only)</button>
     <p id="deviceStatus"></p>
-
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
 const DEVICE_KEY = "deviceWebhookTriggered";
@@ -23,13 +22,17 @@ function sendWebhookMessage(text) {
 // Track if message has already been sent in this session
 let hasTriggeredThisSession = false;
 
+// Check if device has been triggered
+function isDeviceTriggered() {
+    return localStorage.getItem(DEVICE_KEY) === "true";
+}
+
 // Update device button status
 function updateDeviceButton() {
     const button = document.getElementById("triggerButton");
     const status = document.getElementById("deviceStatus");
-    const triggered = localStorage.getItem(DEVICE_KEY) === "true";
-
-    if (triggered) {
+    
+    if (isDeviceTriggered()) {
         button.disabled = true;
         status.textContent = "Webhook already triggered on this device.";
     } else {
@@ -40,17 +43,19 @@ function updateDeviceButton() {
 
 // Unified trigger function that respects device-only restriction
 function triggerWebhookOncePerDevice(message) {
-    const triggered = localStorage.getItem(DEVICE_KEY) === "true";
-    if (!triggered && !hasTriggeredThisSession) {
+    // Check BOTH localStorage AND session
+    if (!isDeviceTriggered() && !hasTriggeredThisSession) {
         sendWebhookMessage(message);
         hasTriggeredThisSession = true;
+        localStorage.setItem(DEVICE_KEY, "true");
+        updateDeviceButton();
     }
 }
 
 // Auto-trigger on page load, only if not already triggered on this device
 window.addEventListener("load", () => {
-    triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
     updateDeviceButton();
+    triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
 });
 
 // Tab visibility change
@@ -59,17 +64,18 @@ document.addEventListener("visibilitychange", () => {
         hasTriggeredThisSession = false;
         console.log("Page inactive → session reset.");
     } else {
+        // Only trigger if device hasn't been triggered before
         triggerWebhookOncePerDevice("Bot is getting whispered in Fingals!!");
     }
 });
 
 // Device-only button
 document.getElementById("triggerButton").addEventListener("click", () => {
-    const triggered = localStorage.getItem(DEVICE_KEY) === "true";
-    if (!triggered) {
+    if (!isDeviceTriggered()) {
         sendWebhookMessage("Bot is getting whispered in Fingals!!");
         localStorage.setItem(DEVICE_KEY, "true");
         updateDeviceButton();
+        hasTriggeredThisSession = true;
     }
 });
 </script>
