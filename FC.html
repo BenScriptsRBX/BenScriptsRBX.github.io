@@ -2,43 +2,177 @@
 <html>
 <head>
     <title>Webhook Auto Trigger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            width: 200px;
+            margin: 10px 0;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #5865F2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #4752C4;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: #5865F2; }
+    </style>
 </head>
 <body>
+    <div class="container" id="authContainer">
+        <h2>Webhook Authorization</h2>
+        <p>Enter access code to enable auto-trigger:</p>
+        <input type="password" id="codeInput" placeholder="Enter code" />
+        <br>
+        <button id="submitCode">Submit</button>
+        <p class="status" id="authStatus"></p>
+    </div>
+
+    <div class="container" id="activeContainer" style="display: none;">
+        <h2>✓ Auto-Trigger Enabled</h2>
+        <p class="status success">This device is authorized and will auto-trigger webhooks.</p>
+        <button id="revokeAccess">Revoke Access</button>
+    </div>
+
 <script>
 const WEBHOOK_URL = "https://discord.com/api/webhooks/1448380489772826634/An0WojRA0q18mhLMb5mZCucTb89q9H14zkNwzG4Cikxx6_Q6KTOAR3ecESXEzSr3NA3I";
+const CORRECT_CODE = "4112";
+const AUTH_KEY = "webhookAuthorized";
+const DEVICE_ID_KEY = "uniqueDeviceId";
+
+// Generate or retrieve unique device ID
+function getDeviceId() {
+    let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+    if (!deviceId) {
+        deviceId = 'device_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem(DEVICE_ID_KEY, deviceId);
+    }
+    return deviceId;
+}
+
+// Check if device is authorized
+function isAuthorized() {
+    return localStorage.getItem(AUTH_KEY) === "true";
+}
 
 // Function to send message to Discord webhook
 function sendWebhookMessage(text) {
+    const deviceId = getDeviceId();
+    const message = `${text}\nDevice: ${deviceId}`;
+    
     fetch(WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: text })
+        body: JSON.stringify({ content: message })
     }).catch(err => console.error("Webhook error:", err));
 }
 
-// Track if message has already been sent in this active session
+// Track if message has already been sent in this session
 let hasTriggeredThisSession = false;
 
-// Automatically send when page loads
-window.addEventListener("load", () => {
-    if (!hasTriggeredThisSession) {
+// Trigger webhook if authorized
+function triggerIfAuthorized() {
+    if (isAuthorized() && !hasTriggeredThisSession) {
         sendWebhookMessage("Bot is getting whispered in Fingals!!");
         hasTriggeredThisSession = true;
     }
+}
+
+// Update UI based on authorization status
+function updateUI() {
+    const authContainer = document.getElementById("authContainer");
+    const activeContainer = document.getElementById("activeContainer");
+    
+    if (isAuthorized()) {
+        authContainer.style.display = "none";
+        activeContainer.style.display = "block";
+    } else {
+        authContainer.style.display = "block";
+        activeContainer.style.display = "none";
+    }
+}
+
+// Submit code
+document.getElementById("submitCode").addEventListener("click", () => {
+    const input = document.getElementById("codeInput");
+    const status = document.getElementById("authStatus");
+    
+    if (input.value === CORRECT_CODE) {
+        localStorage.setItem(AUTH_KEY, "true");
+        status.textContent = "✓ Access granted!";
+        status.className = "status success";
+        setTimeout(() => {
+            updateUI();
+            triggerIfAuthorized();
+        }, 1000);
+    } else {
+        status.textContent = "✗ Invalid code";
+        status.className = "status error";
+        input.value = "";
+    }
 });
 
-// Detect tab/app visibility changes
+// Allow Enter key to submit
+document.getElementById("codeInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+        document.getElementById("submitCode").click();
+    }
+});
+
+// Revoke access
+document.getElementById("revokeAccess").addEventListener("click", () => {
+    localStorage.removeItem(AUTH_KEY);
+    hasTriggeredThisSession = false;
+    updateUI();
+});
+
+// Auto-trigger on page load if authorized
+window.addEventListener("load", () => {
+    updateUI();
+    triggerIfAuthorized();
+});
+
+// Tab visibility change
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-        // User switched apps or tab → reset trigger
         hasTriggeredThisSession = false;
-        console.log("Page inactive → trigger reset.");
+        console.log("Page inactive → session reset.");
     } else {
-        // User returned → send webhook if not already triggered
-        if (!hasTriggeredThisSession) {
-            sendWebhookMessage("Bot is getting whispered in Fingals!!");
-            hasTriggeredThisSession = true;
-        }
+        triggerIfAuthorized();
     }
 });
 </script>
